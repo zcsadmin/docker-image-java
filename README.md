@@ -2,13 +2,16 @@
 
 Docker images used for ZCS Java applications.
 
-## Example usage
-
 ZCS Java docker images come in three flavours:
+
 - `base`: base image, mainly used by other stages
 - `dev`: image for local development
 - `dist`: image for application distribution
 
+Supported platforms:
+
+- `linux/amd64`
+- `linux/arm64`
 
 ## Build images
 
