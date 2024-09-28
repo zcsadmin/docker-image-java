@@ -8,6 +8,11 @@ ZCS Java docker images come in three flavours:
 - `dev`: image for local development
 - `dist`: image for application distribution
 
+Supported Java versions:
+
+ - `Java 17`
+ - `Java 21`
+
 Supported platforms:
 
 - `linux/amd64`
