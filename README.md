@@ -10,8 +10,8 @@ ZCS Java docker images come in three flavours:
 
 Supported Java versions:
 
- - `Java 17`
- - `Java 21`
+- `Java 17`
+- `Java 21`
 
 Supported platforms:
 
@@ -42,8 +42,6 @@ docker build --pull --target dist -t zcscompany/java:21-dist .
 
 https://hub.docker.com/r/zcscompany/java
 
-
 ## Support
 
 [Madnesslab Team @ Zucchetti Centro Sistemi](mailto:madnesslab@zcscompany.com)
-
