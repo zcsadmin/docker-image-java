@@ -1,0 +1,119 @@
+name: Rebuild On Upstream Update
+
+on:
+  schedule:
+    - cron: "0 3 */7 * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  rebuild-if-upstream-changed:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install skopeo
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y skopeo
+
+      - name: Read latest upstream digests
+        id: latest
+        run: |
+          set -euo pipefail
+          digest_maven_17="$(skopeo inspect --format '{{.Digest}}' docker://maven:3.9-eclipse-temurin-17)"
+          digest_maven_21="$(skopeo inspect --format '{{.Digest}}' docker://maven:3.9-eclipse-temurin-21)"
+          digest_temurin_17="$(skopeo inspect --format '{{.Digest}}' docker://eclipse-temurin:17-jre)"
+          digest_temurin_21="$(skopeo inspect --format '{{.Digest}}' docker://eclipse-temurin:21-jre)"
+          echo "digest_maven_17=${digest_maven_17}" >> "$GITHUB_OUTPUT"
+          echo "digest_maven_21=${digest_maven_21}" >> "$GITHUB_OUTPUT"
+          echo "digest_temurin_17=${digest_temurin_17}" >> "$GITHUB_OUTPUT"
+          echo "digest_temurin_21=${digest_temurin_21}" >> "$GITHUB_OUTPUT"
+
+      - name: Read stored digests
+        id: stored
+        run: |
+          set -euo pipefail
+          file_maven_17=".github/state/maven-3.9-eclipse-temurin-17.digest"
+          file_maven_21=".github/state/maven-3.9-eclipse-temurin-21.digest"
+          file_temurin_17=".github/state/eclipse-temurin-17-jre.digest"
+          file_temurin_21=".github/state/eclipse-temurin-21-jre.digest"
+          if [ -f "$file_maven_17" ]; then
+            echo "digest_maven_17=$(cat "$file_maven_17")" >> "$GITHUB_OUTPUT"
+          else
+            echo "digest_maven_17=" >> "$GITHUB_OUTPUT"
+          fi
+          if [ -f "$file_maven_21" ]; then
+            echo "digest_maven_21=$(cat "$file_maven_21")" >> "$GITHUB_OUTPUT"
+          else
+            echo "digest_maven_21=" >> "$GITHUB_OUTPUT"
+          fi
+          if [ -f "$file_temurin_17" ]; then
+            echo "digest_temurin_17=$(cat "$file_temurin_17")" >> "$GITHUB_OUTPUT"
+          else
+            echo "digest_temurin_17=" >> "$GITHUB_OUTPUT"
+          fi
+          if [ -f "$file_temurin_21" ]; then
+            echo "digest_temurin_21=$(cat "$file_temurin_21")" >> "$GITHUB_OUTPUT"
+          else
+            echo "digest_temurin_21=" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Print digest comparison
+        run: |
+          echo "maven:3.9-eclipse-temurin-17 latest: ${{ steps.latest.outputs.digest_maven_17 }}"
+          echo "maven:3.9-eclipse-temurin-17 stored: ${{ steps.stored.outputs.digest_maven_17 }}"
+          echo "maven:3.9-eclipse-temurin-21 latest: ${{ steps.latest.outputs.digest_maven_21 }}"
+          echo "maven:3.9-eclipse-temurin-21 stored: ${{ steps.stored.outputs.digest_maven_21 }}"
+          echo "eclipse-temurin:17-jre latest: ${{ steps.latest.outputs.digest_temurin_17 }}"
+          echo "eclipse-temurin:17-jre stored: ${{ steps.stored.outputs.digest_temurin_17 }}"
+          echo "eclipse-temurin:21-jre latest: ${{ steps.latest.outputs.digest_temurin_21 }}"
+          echo "eclipse-temurin:21-jre stored: ${{ steps.stored.outputs.digest_temurin_21 }}"
+
+      - name: Compare digests
+        id: compare
+        run: |
+          set -euo pipefail
+          changed=false
+          if [ "${{ steps.latest.outputs.digest_maven_17 }}" != "${{ steps.stored.outputs.digest_maven_17 }}" ] \
+            || [ "${{ steps.latest.outputs.digest_maven_21 }}" != "${{ steps.stored.outputs.digest_maven_21 }}" ] \
+            || [ "${{ steps.latest.outputs.digest_temurin_17 }}" != "${{ steps.stored.outputs.digest_temurin_17 }}" ] \
+            || [ "${{ steps.latest.outputs.digest_temurin_21 }}" != "${{ steps.stored.outputs.digest_temurin_21 }}" ]; then
+            changed=true
+          fi
+          echo "changed=${changed}" >> "$GITHUB_OUTPUT"
+
+      - name: Login to Docker Hub
+        if: steps.compare.outputs.changed == 'true'
+        run: |
+          echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
+
+      - name: Build and push Java 17/21 images
+        if: steps.compare.outputs.changed == 'true'
+        run: |
+          set -euo pipefail
+          bash ./build-and-push.sh
+
+      - name: Persist latest digests
+        if: steps.compare.outputs.changed == 'true'
+        run: |
+          set -euo pipefail
+          mkdir -p .github/state
+          echo "${{ steps.latest.outputs.digest_maven_17 }}" > .github/state/maven-3.9-eclipse-temurin-17.digest
+          echo "${{ steps.latest.outputs.digest_maven_21 }}" > .github/state/maven-3.9-eclipse-temurin-21.digest
+          echo "${{ steps.latest.outputs.digest_temurin_17 }}" > .github/state/eclipse-temurin-17-jre.digest
+          echo "${{ steps.latest.outputs.digest_temurin_21 }}" > .github/state/eclipse-temurin-21-jre.digest
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/state/maven-3.9-eclipse-temurin-17.digest .github/state/maven-3.9-eclipse-temurin-21.digest .github/state/eclipse-temurin-17-jre.digest .github/state/eclipse-temurin-21-jre.digest
+          git commit -m "chore: track upstream java base image digests" || exit 0
+          git push
+
+      - name: Skip build when unchanged
+        if: steps.compare.outputs.changed == 'false'
+        run: echo "Upstream maven:3.9-eclipse-temurin-17, maven:3.9-eclipse-temurin-21, eclipse-temurin:17-jre and eclipse-temurin:21-jre digests unchanged. Skipping build."
