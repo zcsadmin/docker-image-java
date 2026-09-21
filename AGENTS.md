@@ -24,4 +24,5 @@ Docker image builder repo for `zcscompany/java` images on Docker Hub (base/dev/d
 - Any change to one Dockerfile must be mirrored to the other (they differ only by version)
 - User `bob` (uid/gid 8989) is load-bearing for `fix-perm.sh`; keep the fixed ids
 - CI (`.github/workflows/rebuild-java-{17,21,25}.yml`): one workflow per version, run nightly (UTC, 17→00:00, 21→02:00, 25→04:00, 2h apart) + manual dispatch. Each compares its version's 2 upstream digests (skopeo) vs `.github/state/*.digest`; on a change it rebuilds+pushes that version's 3 tags, then commits/pushes the updated digest files as `github-actions[bot]`. Deleting a digest file forces a rebuild. Do not hand-edit or commit digest files.
+- CI runners are pinned to `ubuntu-26.04` (deliberate migration ahead of the `ubuntu-latest` rollout, actions/runner-images#14748); do not revert to `ubuntu-latest`
 - Pushing builds SBOM + provenance attestations (`--sbom=true --provenance=true`)
