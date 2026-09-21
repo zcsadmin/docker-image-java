@@ -1,0 +1,39 @@
+name: Security Scan Docker Images
+
+on:
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  security-events: write
+
+jobs:
+  vulnerability-scan:
+    name: Scan java ${{ matrix.version }}-${{ matrix.flavour }}
+    runs-on: ubuntu-26.04
+    timeout-minutes: 30
+
+    strategy:
+      fail-fast: false
+      matrix:
+        version: [17, 21, 25]
+        flavour: [base, dev, dist]
+
+    steps:
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: image
+          image-ref: zcscompany/java:${{ matrix.version }}-${{ matrix.flavour }}
+          format: sarif
+          output: trivy-${{ matrix.version }}-${{ matrix.flavour }}.sarif
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: "0"
+
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: trivy-${{ matrix.version }}-${{ matrix.flavour }}.sarif
+          category: trivy-java-${{ matrix.version }}-${{ matrix.flavour }}
