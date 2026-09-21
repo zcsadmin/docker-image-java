@@ -6,6 +6,10 @@ FROM maven:3.9-eclipse-temurin-25 AS base
 ARG DOCKER_USER=bob
 ARG DOCKER_GROUP=bob
 
+# Persist runtime metadata used by fix-perm.sh in downstream images
+ENV DOCKER_USER=${DOCKER_USER} \
+    DOCKER_GROUP=${DOCKER_GROUP}
+
 # Add normal user that will use the container
 RUN set -ex; addgroup --gid 8989 ${DOCKER_GROUP} && \
     adduser --ingroup ${DOCKER_GROUP} --uid 8989 --disabled-password ${DOCKER_USER} 
@@ -44,6 +48,10 @@ FROM eclipse-temurin:25-jre AS dist
 
 ARG DOCKER_USER=bob
 ARG DOCKER_GROUP=bob
+
+# Persist runtime metadata used by fix-perm.sh in downstream images
+ENV DOCKER_USER=${DOCKER_USER} \
+    DOCKER_GROUP=${DOCKER_GROUP}
 
 # Add normal user that will use the container
 RUN set -eux; groupadd --gid 8989 ${DOCKER_GROUP} && \
