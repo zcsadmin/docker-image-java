@@ -2,26 +2,19 @@
 
 PUSH="--push"
 
-set -eux 
+set -eux
+
+VERSIONS=("$@")
+if [ ${#VERSIONS[@]} -eq 0 ]; then
+    VERSIONS=(25 21 17)
+fi
 
 docker buildx create --name container --driver=docker-container default || true
 
-docker buildx build --platform linux/amd64,linux/arm64 --sbom=true --provenance=true --builder=container --pull ${PUSH} --target base -f Dockerfile25 -t zcscompany/java:25-base .
-
-docker buildx build --platform linux/amd64,linux/arm64 --sbom=true --provenance=true --builder=container --pull ${PUSH} --target dev -f Dockerfile25 -t zcscompany/java:25-dev .
-
-docker buildx build --platform linux/amd64,linux/arm64 --sbom=true --provenance=true --builder=container --pull ${PUSH} --target dist -f Dockerfile25 -t zcscompany/java:25-dist .
-
-docker buildx build --platform linux/amd64,linux/arm64 --sbom=true --provenance=true --builder=container --pull ${PUSH} --target base -f Dockerfile21 -t zcscompany/java:21-base .
-
-docker buildx build --platform linux/amd64,linux/arm64 --sbom=true --provenance=true --builder=container --pull ${PUSH} --target dev -f Dockerfile21 -t zcscompany/java:21-dev .
-
-docker buildx build --platform linux/amd64,linux/arm64 --sbom=true --provenance=true --builder=container --pull ${PUSH} --target dist -f Dockerfile21 -t zcscompany/java:21-dist .
-
-docker buildx build --platform linux/amd64,linux/arm64 --sbom=true --provenance=true --builder=container --pull ${PUSH} --target base -f Dockerfile17 -t zcscompany/java:17-base .
-
-docker buildx build --platform linux/amd64,linux/arm64 --sbom=true --provenance=true --builder=container --pull ${PUSH} --target dev -f Dockerfile17 -t zcscompany/java:17-dev .
-
-docker buildx build --platform linux/amd64,linux/arm64 --sbom=true --provenance=true --builder=container --pull ${PUSH} --target dist -f Dockerfile17 -t zcscompany/java:17-dist .
+for v in "${VERSIONS[@]}"; do
+    docker buildx build --platform linux/amd64,linux/arm64 --sbom=true --provenance=true --builder=container --pull ${PUSH} --target base -f Dockerfile${v} -t zcscompany/java:${v}-base .
+    docker buildx build --platform linux/amd64,linux/arm64 --sbom=true --provenance=true --builder=container --pull ${PUSH} --target dev -f Dockerfile${v} -t zcscompany/java:${v}-dev .
+    docker buildx build --platform linux/amd64,linux/arm64 --sbom=true --provenance=true --builder=container --pull ${PUSH} --target dist -f Dockerfile${v} -t zcscompany/java:${v}-dist .
+done
 
 docker buildx stop container
