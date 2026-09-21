@@ -12,6 +12,7 @@ Supported Java versions:
 
 - `Java 17`
 - `Java 21`
+- `Java 25`
 
 Supported platforms:
 
@@ -23,19 +24,19 @@ Supported platforms:
 ### Base image
 
 ```bash
-docker build --pull --target base -t zcscompany/java:21-base .
+docker build --pull -f Dockerfile21 --target base -t zcscompany/java:21-base .
 ```
 
 ### Dev image
 
 ```bash
-docker build --pull --target dev -t zcscompany/java:21-dev .
+docker build --pull -f Dockerfile21 --target dev -t zcscompany/java:21-dev .
 ```
 
 ### Dist image
 
 ```bash
-docker build --pull --target dist -t zcscompany/java:21-dist .
+docker build --pull -f Dockerfile21 --target dist -t zcscompany/java:21-dist .
 ```
 
 ## Docker hub repository

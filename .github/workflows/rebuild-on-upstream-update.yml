@@ -27,12 +27,16 @@ jobs:
           set -euo pipefail
           digest_maven_17="$(skopeo inspect --format '{{.Digest}}' docker://maven:3.9-eclipse-temurin-17)"
           digest_maven_21="$(skopeo inspect --format '{{.Digest}}' docker://maven:3.9-eclipse-temurin-21)"
+          digest_maven_25="$(skopeo inspect --format '{{.Digest}}' docker://maven:3.9-eclipse-temurin-25)"
           digest_temurin_17="$(skopeo inspect --format '{{.Digest}}' docker://eclipse-temurin:17-jre)"
           digest_temurin_21="$(skopeo inspect --format '{{.Digest}}' docker://eclipse-temurin:21-jre)"
+          digest_temurin_25="$(skopeo inspect --format '{{.Digest}}' docker://eclipse-temurin:25-jre)"
           echo "digest_maven_17=${digest_maven_17}" >> "$GITHUB_OUTPUT"
           echo "digest_maven_21=${digest_maven_21}" >> "$GITHUB_OUTPUT"
+          echo "digest_maven_25=${digest_maven_25}" >> "$GITHUB_OUTPUT"
           echo "digest_temurin_17=${digest_temurin_17}" >> "$GITHUB_OUTPUT"
           echo "digest_temurin_21=${digest_temurin_21}" >> "$GITHUB_OUTPUT"
+          echo "digest_temurin_25=${digest_temurin_25}" >> "$GITHUB_OUTPUT"
 
       - name: Read stored digests
         id: stored
@@ -40,8 +44,10 @@ jobs:
           set -euo pipefail
           file_maven_17=".github/state/maven-3.9-eclipse-temurin-17.digest"
           file_maven_21=".github/state/maven-3.9-eclipse-temurin-21.digest"
+          file_maven_25=".github/state/maven-3.9-eclipse-temurin-25.digest"
           file_temurin_17=".github/state/eclipse-temurin-17-jre.digest"
           file_temurin_21=".github/state/eclipse-temurin-21-jre.digest"
+          file_temurin_25=".github/state/eclipse-temurin-25-jre.digest"
           if [ -f "$file_maven_17" ]; then
             echo "digest_maven_17=$(cat "$file_maven_17")" >> "$GITHUB_OUTPUT"
           else
@@ -51,6 +57,11 @@ jobs:
             echo "digest_maven_21=$(cat "$file_maven_21")" >> "$GITHUB_OUTPUT"
           else
             echo "digest_maven_21=" >> "$GITHUB_OUTPUT"
+          fi
+          if [ -f "$file_maven_25" ]; then
+            echo "digest_maven_25=$(cat "$file_maven_25")" >> "$GITHUB_OUTPUT"
+          else
+            echo "digest_maven_25=" >> "$GITHUB_OUTPUT"
           fi
           if [ -f "$file_temurin_17" ]; then
             echo "digest_temurin_17=$(cat "$file_temurin_17")" >> "$GITHUB_OUTPUT"
@@ -62,6 +73,11 @@ jobs:
           else
             echo "digest_temurin_21=" >> "$GITHUB_OUTPUT"
           fi
+          if [ -f "$file_temurin_25" ]; then
+            echo "digest_temurin_25=$(cat "$file_temurin_25")" >> "$GITHUB_OUTPUT"
+          else
+            echo "digest_temurin_25=" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Print digest comparison
         run: |
@@ -69,10 +85,14 @@ jobs:
           echo "maven:3.9-eclipse-temurin-17 stored: ${{ steps.stored.outputs.digest_maven_17 }}"
           echo "maven:3.9-eclipse-temurin-21 latest: ${{ steps.latest.outputs.digest_maven_21 }}"
           echo "maven:3.9-eclipse-temurin-21 stored: ${{ steps.stored.outputs.digest_maven_21 }}"
+          echo "maven:3.9-eclipse-temurin-25 latest: ${{ steps.latest.outputs.digest_maven_25 }}"
+          echo "maven:3.9-eclipse-temurin-25 stored: ${{ steps.stored.outputs.digest_maven_25 }}"
           echo "eclipse-temurin:17-jre latest: ${{ steps.latest.outputs.digest_temurin_17 }}"
           echo "eclipse-temurin:17-jre stored: ${{ steps.stored.outputs.digest_temurin_17 }}"
           echo "eclipse-temurin:21-jre latest: ${{ steps.latest.outputs.digest_temurin_21 }}"
           echo "eclipse-temurin:21-jre stored: ${{ steps.stored.outputs.digest_temurin_21 }}"
+          echo "eclipse-temurin:25-jre latest: ${{ steps.latest.outputs.digest_temurin_25 }}"
+          echo "eclipse-temurin:25-jre stored: ${{ steps.stored.outputs.digest_temurin_25 }}"
 
       - name: Compare digests
         id: compare
@@ -81,8 +101,10 @@ jobs:
           changed=false
           if [ "${{ steps.latest.outputs.digest_maven_17 }}" != "${{ steps.stored.outputs.digest_maven_17 }}" ] \
             || [ "${{ steps.latest.outputs.digest_maven_21 }}" != "${{ steps.stored.outputs.digest_maven_21 }}" ] \
+            || [ "${{ steps.latest.outputs.digest_maven_25 }}" != "${{ steps.stored.outputs.digest_maven_25 }}" ] \
             || [ "${{ steps.latest.outputs.digest_temurin_17 }}" != "${{ steps.stored.outputs.digest_temurin_17 }}" ] \
-            || [ "${{ steps.latest.outputs.digest_temurin_21 }}" != "${{ steps.stored.outputs.digest_temurin_21 }}" ]; then
+            || [ "${{ steps.latest.outputs.digest_temurin_21 }}" != "${{ steps.stored.outputs.digest_temurin_21 }}" ] \
+            || [ "${{ steps.latest.outputs.digest_temurin_25 }}" != "${{ steps.stored.outputs.digest_temurin_25 }}" ]; then
             changed=true
           fi
           echo "changed=${changed}" >> "$GITHUB_OUTPUT"
@@ -92,7 +114,7 @@ jobs:
         run: |
           echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
 
-      - name: Build and push Java 17/21 images
+      - name: Build and push Java 17/21/25 images
         if: steps.compare.outputs.changed == 'true'
         run: |
           set -euo pipefail
@@ -105,15 +127,17 @@ jobs:
           mkdir -p .github/state
           echo "${{ steps.latest.outputs.digest_maven_17 }}" > .github/state/maven-3.9-eclipse-temurin-17.digest
           echo "${{ steps.latest.outputs.digest_maven_21 }}" > .github/state/maven-3.9-eclipse-temurin-21.digest
+          echo "${{ steps.latest.outputs.digest_maven_25 }}" > .github/state/maven-3.9-eclipse-temurin-25.digest
           echo "${{ steps.latest.outputs.digest_temurin_17 }}" > .github/state/eclipse-temurin-17-jre.digest
           echo "${{ steps.latest.outputs.digest_temurin_21 }}" > .github/state/eclipse-temurin-21-jre.digest
+          echo "${{ steps.latest.outputs.digest_temurin_25 }}" > .github/state/eclipse-temurin-25-jre.digest
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add .github/state/maven-3.9-eclipse-temurin-17.digest .github/state/maven-3.9-eclipse-temurin-21.digest .github/state/eclipse-temurin-17-jre.digest .github/state/eclipse-temurin-21-jre.digest
+          git add .github/state/maven-3.9-eclipse-temurin-17.digest .github/state/maven-3.9-eclipse-temurin-21.digest .github/state/maven-3.9-eclipse-temurin-25.digest .github/state/eclipse-temurin-17-jre.digest .github/state/eclipse-temurin-21-jre.digest .github/state/eclipse-temurin-25-jre.digest
           git commit -m "chore: track upstream java base image digests" || exit 0
           git push
 
       - name: Skip build when unchanged
         if: steps.compare.outputs.changed == 'false'
-        run: echo "Upstream maven:3.9-eclipse-temurin-17, maven:3.9-eclipse-temurin-21, eclipse-temurin:17-jre and eclipse-temurin:21-jre digests unchanged. Skipping build."
+        run: echo "Upstream maven:3.9-eclipse-temurin-17, maven:3.9-eclipse-temurin-21, maven:3.9-eclipse-temurin-25, eclipse-temurin:17-jre, eclipse-temurin:21-jre and eclipse-temurin:25-jre digests unchanged. Skipping build."
